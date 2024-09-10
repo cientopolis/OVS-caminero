@@ -1,7 +1,8 @@
 import csv
-from geolocalizador import GeolocalizadorNominatim, GeolocalizadorDatosGobar, GeolocalizadorHere
+from geolocalizador import GeolocalizadorNominatim, GeolocalizadorDatosGobar, GeolocalizadorHere, GeolocalizadorLocationIQ, GeolocalizadorOpenCage, GeolocalizadorPositionStack
 
 def procesar_direcciones(input_csv, output_csv, geolocalizador):
+    
     with open(input_csv, mode='r', newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')  # Especifica el delimitador correcto
         fieldnames = ['direccion', 'latitud', 'longitud','provincia','localidad']
@@ -34,9 +35,19 @@ def procesar_direcciones(input_csv, output_csv, geolocalizador):
 
 
 if __name__ == "__main__":
-    # Ejemplo de uso:
+    # ANDAN TODOS: Nominatim (a veces falla por 403, algo del user agent) 
+    #              DatosGobAr 
+    #              Here
+    #              LocationIQ
+    #              OpenCage
+    #              PositionStack
+    
+    
     #geolocalizador = GeolocalizadorNominatim('My geolocalizador')
-    geolocalizador = GeolocalizadorDatosGobar()
+    #geolocalizador = GeolocalizadorDatosGobar()
     #geolocalizador = GeolocalizadorHere('WVGOKd5D1jL7mKdGX72JwyLDBLnyVjbVEup57gClXT4')
+    #geolocalizador = GeolocalizadorLocationIQ('pk.ba47f83040b10421760894962582fcfc')
+    #geolocalizador = GeolocalizadorOpenCage('6590cde716274d6fa8073f08c1b072e6')
+    geolocalizador = GeolocalizadorPositionStack('e665bce8e383c3af9321bfe5ba8dc7b0')
+    
     procesar_direcciones('direccionesCSV.csv', 'direcciones_geolocalizadas.csv', geolocalizador)
-
