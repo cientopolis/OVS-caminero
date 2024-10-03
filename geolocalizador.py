@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 import time 
+from functools import lru_cache
+import requests
+import urllib.parse
+
 def limpiar_calle(calle):
         import re
         """
@@ -18,10 +22,9 @@ class GeolocalizadorNominatim(Geolocalizador):
     def __init__(self, user_agent, delay=2):
         self.user_agent = user_agent
         self.delay = delay
-
+    @lru_cache(maxsize=1000)  # Caching para direcciones repetidas
     def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
+
         
         direccion_codificada = urllib.parse.quote(direccion)
         url = f"https://nominatim.openstreetmap.org/search?street={direccion_codificada}&city={localidad}&format=json"
@@ -40,9 +43,8 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         self.total_solicitudes = 0  # Inicializar contador de solicitudes totales
         self.solicitudes_exitosas = 0  # Inicializar contador de solicitudes exitosas
 
-    def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
+    def obtener_coordenadas(self, direccion):
+
         direccion_codificada = urllib.parse.quote(direccion)
         url = f"https://apis.datos.gob.ar/georef/api/direcciones?direccion={direccion_codificada}"
         response = requests.get(url)
@@ -51,6 +53,8 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
 
         if data['direcciones']:
+            # Se devuelve la primer direccion de la lista
+            # En normalizacion_por_lotes.py se muestra como localizar la "mejor direccion"
            return data['direcciones'][0]['ubicacion']['lat'], data['direcciones'][0]['ubicacion']['lon']
         else:
            # Manejo del caso cuando no se encuentran direcciones
@@ -86,15 +90,12 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         return direccion_completa
 
     def normalizar_direccion(self,direccion, provincia=None, distrito=None):
-        import requests
-        url = "https://apis.datos.gob.ar/georef/api/direcciones"
-        params = {
-            'direccion': direccion,
-            'provincia': provincia,
-            'departamento': distrito
-            }
+
+        direccion_codificada = urllib.parse.quote(direccion)
+        url = f"https://apis.datos.gob.ar/georef/api/direcciones?direccion={direccion_codificada}"
+        response = requests.get(url)
         self.total_solicitudes += 1
-        response = requests.get(url,params)
+
         # Modificación en el archivo geolocalizador.py
         
         if response.status_code != 200:
@@ -106,13 +107,14 @@ class GeolocalizadorDatosGobar(Geolocalizador):
             return None
         self.solicitudes_exitosas += 1
         return self.construir_direccion_normalizada(data['direcciones'][0])
+    
+
     def obtener_estadisticas(self):
         return {
         'total_solicitudes': self.total_solicitudes,
         'solicitudes_exitosas': self.solicitudes_exitosas
         }
     
-
 
     
 class GeolocalizadorHere(Geolocalizador):
@@ -121,8 +123,7 @@ class GeolocalizadorHere(Geolocalizador):
         self.delay = delay
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
+
         
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
@@ -142,8 +143,7 @@ class GeolocalizadorLocationIQ(Geolocalizador):
         self.delay = delay
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
+
         
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
@@ -163,8 +163,7 @@ class GeolocalizadorOpenCage(Geolocalizador):
         self.delay = delay
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
+
         
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
@@ -184,9 +183,7 @@ class GeolocalizadorPositionStack(Geolocalizador):
         self.delay = delay
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
-        import requests
-        import urllib.parse
-        
+
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
         url = f"http://api.positionstack.com/v1/forward?access_key={self.api_key}&query={direccion_codificada}"
