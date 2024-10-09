@@ -28,13 +28,10 @@ df.rename(columns={'province;': 'province'}, inplace=True)
 df = df[df['address'].notna() & (df['address'].str.strip() != '')]
 direcciones = df[['address', 'district']].dropna().values.tolist()
 
-direcciones = direcciones[:50000]
+direcciones = direcciones[:60000]
+
 
 # Función para procesar la dirección y eliminar cualquier altura igual a '0'
-#def procesar_direccion(direccion):
-#   direccion = direccion.replace('{', '').replace('}', '')
-#   return re.sub(r'\b00\b|\b0\b|\b000\b|\b0000\b', '', direccion).strip()
-
 def procesar_direccion(direccion):
     # Eliminar llaves y limpiar la dirección
     direccion = direccion.replace('{', '').replace('}', '')
@@ -47,14 +44,15 @@ def procesar_direccion(direccion):
         return None  # Si está vacía, retornar None
     
     return direccion_limpia  # Retornar la dirección limpia si no está vacía
-
-# Función para normalizar direcciones por lotes
+#60.000 - 17.700 con max 5
+#60.000 - 18.500 con max 3
+# Función para normalizar direcciones por lotes con el parámetro "max"
 def normalizar_direcciones(direcciones):
     base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
     resultados = []
 
-    for i in range(0, len(direcciones), 300):
-        lote = direcciones[i:i+300]
+    for i in range(0, len(direcciones),1000):
+        lote = direcciones[i:i+1000]
         payload = {
             "direcciones": []
         }
@@ -62,10 +60,19 @@ def normalizar_direcciones(direcciones):
         for dir in lote:
             direccion_procesada = procesar_direccion(dir[0])  # Procesar cada dirección
             if direccion_procesada:  # Verificar que la dirección no esté vacía
-                payload["direcciones"].append({"direccion": direccion_procesada})
+                direccion_data = {
+                    "direccion": direccion_procesada,
+                    "max": 3  # Limitar los resultados a un máximo de 5 por dirección
+                }
+                # Si hay distrito, añadirlo también al payload
+                if dir[1]:
+                    direccion_data["localidad_censal"] = dir[1]
+                
+                payload["direcciones"].append(direccion_data)
+    
 
         if not payload["direcciones"]:  # Si no hay direcciones válidas en el lote, continuar
-            print(f"Lote {i // 500 + 1} está vacío después del procesamiento.")
+            print(f"Lote {i // 900 + 1} está vacío después del procesamiento.")
             continue
 
         response = requests.post(base_url, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}, data=json.dumps(payload))
@@ -76,7 +83,7 @@ def normalizar_direcciones(direcciones):
             resultados.extend(data['resultados'])
         else:
             # Imprimir el lote que causó el error
-            print(f"Error en el lote {i // 500 + 1}: {response.status_code}, Mensaje: {response.text}")
+            print(f"Error en el lote {i // 900 + 1}: {response.status_code}, Mensaje: {response.text}")
             print(f"Lote que causó el error: {payload}")  # Imprimir el contenido del lote en caso de error
         
         time.sleep(1)
@@ -97,13 +104,13 @@ for i, resultado in enumerate(resultados_normalizados):
             provincia = dir.get('provincia', {}).get('nombre')
             if provincia and 'buenos aires' in provincia.lower():
                 district_original = direcciones[i][1]
-                district_api = dir.get('localidad', {}).get('nombre')
+                district_api = dir.get('localidad_censal', {}).get('nombre')
                 score = 1 if district_original and district_api and district_original.lower() == district_api.lower() else 0
                 if score > mejor_score:
                     mejor_score = score
                     mejor_direccion = {
                         'direccion': geolocalizador.construir_direccion_normalizada(dir),
-                        'localidad': district_original,
+                        'localidad': district_api,
                         'latitud': dir.get('ubicacion', {}).get('lat'),
                         'longitud': dir.get('ubicacion', {}).get('lon'),
                     }
