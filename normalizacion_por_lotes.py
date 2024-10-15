@@ -8,27 +8,20 @@ import sys
 import os
 
 sys.path.append(os.path.abspath('C:/Users/Usuario/appdata/local/programs/python/python310/lib/site-packages'))
-import jwt
 
-key = 'YXNkc2Rhc2RmYXNkZmFzZmRhc2RmYXNk'
-message = {'iss': key}
-secret = 'dnVvODY4Yzc2bzhzNzZqOG83czY4b2Nq'
-token = jwt.encode(message, secret, algorithm='HS256')
-
-print(token)
 
 input_file = 'C:/Users/Usuario/Desktop/ovs-caminero/direcciones_BsAs.csv'
 output_file = 'C:/Users/Usuario/Desktop/ovs-caminero/direcciones_normalizadas_por_lotes.csv'
 
 df = pd.read_csv(input_file, sep=',', keep_default_na=False, on_bad_lines='skip')
 df.columns = df.columns.str.strip()
-df.rename(columns={'province;': 'province'}, inplace=True)
+
 
 # Filtrar direcciones no nulas y no vacías
 df = df[df['address'].notna() & (df['address'].str.strip() != '')]
 direcciones = df[['address', 'district']].dropna().values.tolist()
 
-direcciones = direcciones[:60000]
+direcciones = direcciones[:100000]
 
 
 # Función para procesar la dirección y eliminar cualquier altura igual a '0'
@@ -44,8 +37,8 @@ def procesar_direccion(direccion):
         return None  # Si está vacía, retornar None
     
     return direccion_limpia  # Retornar la dirección limpia si no está vacía
-#60.000 - 17.700 con max 5
-#60.000 - 18.500 con max 3
+
+
 # Función para normalizar direcciones por lotes con el parámetro "max"
 def normalizar_direcciones(direcciones):
     base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
@@ -75,7 +68,7 @@ def normalizar_direcciones(direcciones):
             print(f"Lote {i // 900 + 1} está vacío después del procesamiento.")
             continue
 
-        response = requests.post(base_url, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}, data=json.dumps(payload))
+        response = requests.post(base_url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
         
         # Verificar la respuesta de la API
         if response.status_code == 200:
@@ -109,7 +102,7 @@ for i, resultado in enumerate(resultados_normalizados):
                 if score > mejor_score:
                     mejor_score = score
                     mejor_direccion = {
-                        'direccion': geolocalizador.construir_direccion_normalizada(dir),
+                        'direccion': dir.get('nomenclatura'),
                         'localidad': district_api,
                         'latitud': dir.get('ubicacion', {}).get('lat'),
                         'longitud': dir.get('ubicacion', {}).get('lon'),
@@ -119,6 +112,9 @@ for i, resultado in enumerate(resultados_normalizados):
 
 # Guardar los resultados normalizados en un archivo CSV
 df_normalizado = pd.DataFrame(normalizadas)
+# Eliminar duplicados
+df_normalizado = df_normalizado.drop_duplicates(subset=['direccion', 'localidad', 'latitud', 'longitud'], keep='first')
+# Guardarlo
 df_normalizado.to_csv(output_file, index=False)
 
 print("Proceso completado. Resultados guardados en:", output_file)
