@@ -19,7 +19,7 @@ df.columns = df.columns.str.strip()
 # Filtrar direcciones no nulas y no vacías
 df = df[df['address'].notna() & (df['address'].str.strip() != '')]
 direcciones = df[['address', 'district']].dropna().values.tolist()
-direcciones = direcciones[:150000]
+direcciones = direcciones[:1000]
 
 # Función para procesar la dirección y eliminar cualquier altura igual a '0'
 def procesar_direccion(direccion):
@@ -29,7 +29,7 @@ def procesar_direccion(direccion):
 
 # Función para normalizar direcciones por lotes
 def normalizar_direcciones(direcciones):
-    base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
+    base_url = "localhost:8080/api/direcciones"
     resultados = []
 
     for i in range(0, len(direcciones), 1000):
