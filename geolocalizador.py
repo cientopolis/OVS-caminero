@@ -1,31 +1,23 @@
 from abc import ABC, abstractmethod
 import time 
-from functools import lru_cache
 import requests
 import urllib.parse
+import re
+import json
 
-def limpiar_calle(calle):
-        import re
-        """
-        Función auxiliar para eliminar números no deseados al principio de una calle.
-        """
-        if not isinstance(calle, str):
-            return ''  # Si 'calle' no es un string, devolver cadena vacía
-            # Eliminar números al inicio de la calle que no corresponden a una altura
-        return re.sub(r'^\d+\s', '', calle)
+    
 class Geolocalizador(ABC):
     @abstractmethod
     def obtener_coordenadas(self, direccion, provincia, localidad):
         pass
 
 class GeolocalizadorNominatim(Geolocalizador):
-    def __init__(self, user_agent, delay=2):
+    def __init__(self, user_agent, delay):
         self.user_agent = user_agent
         self.delay = delay
-    @lru_cache(maxsize=1000)  # Caching para direcciones repetidas
+    
     def obtener_coordenadas(self, direccion, provincia, localidad):
 
-        
         direccion_codificada = urllib.parse.quote(direccion)
         url = f"https://nominatim.openstreetmap.org/search?street={direccion_codificada}&city={localidad}&format=json"
         response = requests.get(url)
@@ -38,12 +30,11 @@ class GeolocalizadorNominatim(Geolocalizador):
         return latitud, longitud
 
 class GeolocalizadorDatosGobar(Geolocalizador):
-    def __init__(self, delay=0):
+    def __init__(self, delay):
         self.delay = delay
-        self.total_solicitudes = 0  # Inicializar contador de solicitudes totales
-        self.solicitudes_exitosas = 0  # Inicializar contador de solicitudes exitosas
-
-    def obtener_coordenadas(self, direccion):
+        self.base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
+        
+    def obtener_coordenadas(self, direccion, provincia = None, localidad = None):
 
         direccion_codificada = urllib.parse.quote(direccion)
         url = f"https://apis.datos.gob.ar/georef/api/direcciones?direccion={direccion_codificada}"
@@ -54,71 +45,104 @@ class GeolocalizadorDatosGobar(Geolocalizador):
 
         if data['direcciones']:
             # Se devuelve la primer direccion de la lista
-            # En normalizacion_por_lotes.py se muestra como localizar la "mejor direccion"
            return data['direcciones'][0]['ubicacion']['lat'], data['direcciones'][0]['ubicacion']['lon']
         else:
            # Manejo del caso cuando no se encuentran direcciones
            return None, None
-
-    def construir_direccion_normalizada(self,data):
-        
-        # Obtener los campos de la respuesta
-        calle = data.get('calle', {}).get('nombre', '')
-        altura = data.get('altura', {}).get('valor', '')
-        calle_cruce_1 = data.get('calle_cruce_1', {}).get('nombre', '')
-        calle_cruce_2 = data.get('calle_cruce_2', {}).get('nombre', '')
-        
-        calle = limpiar_calle(calle)
-        calle_cruce_1 = limpiar_calle(calle_cruce_1)
-        calle_cruce_2 = limpiar_calle(calle_cruce_2)
-        
-        # Construir la dirección completa
-        direccion_completa = calle
-
-        if altura:
-            direccion_completa += f" {altura}"
-            # Solo agregar "entre" si ambos cruces están presentes
-        if calle_cruce_1 and calle_cruce_2:
-            direccion_completa += f" entre {calle_cruce_1} y {calle_cruce_2}"
-            # Si solo está presente uno de los cruces
-        elif calle_cruce_1:
-            direccion_completa += f" y {calle_cruce_1}"
-        elif calle_cruce_2:
-            direccion_completa += f" y {calle_cruce_2}"
-        # Verificar si hay un número no deseado al principio de la dirección
-        # Eliminamos números al inicio que no correspondan a una altura real
-        return direccion_completa
-
-    def normalizar_direccion(self,direccion, provincia=None, distrito=None):
-
-        direccion_codificada = urllib.parse.quote(direccion)
-        url = f"https://apis.datos.gob.ar/georef/api/direcciones?direccion={direccion_codificada}"
-        response = requests.get(url)
-        self.total_solicitudes += 1
-
-        # Modificación en el archivo geolocalizador.py
-        
-        if response.status_code != 200:
-            return None  # Manejo de errores en caso de que la solicitud falle
-        
-        data = response.json()
-
-        if not data['direcciones']:  # Si no hay direcciones en la respuesta
-            return None
-        self.solicitudes_exitosas += 1
-        return self.construir_direccion_normalizada(data['direcciones'][0])
     
-
-    def obtener_estadisticas(self):
-        return {
-        'total_solicitudes': self.total_solicitudes,
-        'solicitudes_exitosas': self.solicitudes_exitosas
-        }
+    def procesar_direccion(self,direccion):
+        """
+        Realiza un preprocesamiento de la direccion para mandarla a la API.
+        """
+        direccion = direccion.replace('{', '').replace('}', '')
+        direccion_limpia = re.sub(r'\b00+\b|\b0\b', '', direccion).strip()
+        direccion_limpia = re.sub(r'[^\w\s]', '', direccion_limpia).strip()
+        return direccion_limpia if direccion_limpia else None
     
+    def normalizar_direcciones_por_lotes(self, direcciones):
+        """
+        Normaliza una lista de direcciones enviándolas en bloques de 1000 a la API de georef.
+        """
+        resultados = []
 
+        for i in range(0, len(direcciones), 1000):
+            lote = direcciones[i:i + 1000]
+            payload = {"direcciones": []}
+
+            # Procesar cada dirección en el lote
+            for dir in lote:
+                direccion_procesada = self.procesar_direccion(dir[0])
+                if direccion_procesada:
+                    direccion_data = {"direccion": direccion_procesada, "max": 3}
+                    if dir[1]:  # Si la localidad es proporcionada, incluirla
+                        direccion_data["localidad_censal"] = dir[1]
+                    payload["direcciones"].append(direccion_data)
+
+            # Si el lote no contiene direcciones, lo saltamos
+            if not payload["direcciones"]:
+                print(f"Lote {i // 1000 + 1} está vacío después del procesamiento.")
+                continue
+
+            # Hacer la solicitud a la API
+            try:
+                response = requests.post(
+                    self.base_url,
+                    headers={'Content-Type': 'application/json'},
+                    data=json.dumps(payload)
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    resultados.extend(data.get('resultados', []))
+                else:
+                    print(f"Error en el lote {i // 1000 + 1}: {response.status_code}, Mensaje: {response.text}")
+                    print(f"Lote que causó el error: {json.dumps(payload, indent=2)}")
+            except requests.exceptions.RequestException as e:
+                print(f"Excepción en el lote {i // 1000 + 1}: {e}")
+
+        return resultados    
+    def buscar_mejor_direccion(self,direccion_original,direcciones_api):
+        """
+        Para una dirección busca la mejor direccion entre la lista que devuelve la API.
+        """
+        mejor_direccion = None
+        distrito_original = direccion_original[1]  # Se asume que el índice 1 es la localidad original
+
+        for dir_api in direcciones_api:
+            distrito_api = dir_api.get('localidad_censal', {}).get('nombre', '').lower()
+
+            # Comparación de localidades
+            if distrito_original.lower() == distrito_api:
+                mejor_direccion = {
+                    'direccion': dir_api.get('nomenclatura'),
+                    'localidad': dir_api.get('localidad_censal',{}).get('nombre'),
+                    'latitud': dir_api.get('ubicacion', {}).get('lat'),
+                    'longitud': dir_api.get('ubicacion', {}).get('lon'),
+                }
+                break  # Si encontramos una coincidencia exacta, podemos salir del bucle
+
+        return mejor_direccion
+    def procesar_direcciones(self, direcciones):
+        """
+        Procesa una lista de direcciones, obteniendo la mejor dirección por localidad.
+        """
+        resultados_normalizados = self.normalizar_direcciones_por_lotes(direcciones)
+        normalizadas = []
+
+        for i, resultado in enumerate(resultados_normalizados):
+            if resultado['cantidad'] > 0:
+                direcciones_api = resultado['direcciones']
+                direccion_original = direcciones[i]
+                mejor_direccion = self.buscar_mejor_direccion(direccion_original, direcciones_api)
+
+                if mejor_direccion:
+                    normalizadas.append(mejor_direccion)
+                    
+        return normalizadas
+        
     
 class GeolocalizadorHere(Geolocalizador):
-    def __init__(self, api_key, delay=1):
+    def __init__(self, api_key, delay):
         self.api_key = api_key
         self.delay = delay
 
@@ -138,7 +162,7 @@ class GeolocalizadorHere(Geolocalizador):
         return latitud, longitud
 
 class GeolocalizadorLocationIQ(Geolocalizador):
-    def __init__(self, api_key, delay=1):
+    def __init__(self, api_key, delay):
         self.api_key = api_key
         self.delay = delay
 
@@ -158,7 +182,7 @@ class GeolocalizadorLocationIQ(Geolocalizador):
         return latitud, longitud
 
 class GeolocalizadorOpenCage(Geolocalizador):
-    def __init__(self, api_key, delay=1):
+    def __init__(self, api_key, delay):
         self.api_key = api_key
         self.delay = delay
 
@@ -178,7 +202,7 @@ class GeolocalizadorOpenCage(Geolocalizador):
         return latitud, longitud
 
 class GeolocalizadorPositionStack(Geolocalizador):
-    def __init__(self, api_key, delay=1):
+    def __init__(self, api_key, delay):
         self.api_key = api_key
         self.delay = delay
 
