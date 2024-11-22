@@ -1,7 +1,7 @@
 import csv
 import sys
 sys.path.append('C:/Users/Usuario/Desktop/OVS-caminero')
-import csv
+
 from geolocalizador import GeolocalizadorNominatim, GeolocalizadorDatosGobar, GeolocalizadorHere, GeolocalizadorLocationIQ, GeolocalizadorOpenCage, GeolocalizadorPositionStack
 
 def procesar_direcciones(input_csv, output_csv, geolocalizador):
@@ -46,11 +46,11 @@ if __name__ == "__main__":
     #              PositionStack
     
     
-    #geolocalizador = GeolocalizadorNominatim('My geo')
-    #geolocalizador = GeolocalizadorDatosGobar()
-    #geolocalizador = GeolocalizadorHere('WVGOKd5D1jL7mKdGX72JwyLDBLnyVjbVEup57gClXT4')
-    #geolocalizador = GeolocalizadorLocationIQ('pk.ba47f83040b10421760894962582fcfc')
-    #geolocalizador = GeolocalizadorOpenCage('6590cde716274d6fa8073f08c1b072e6')
-    geolocalizador = GeolocalizadorPositionStack('e665bce8e383c3af9321bfe5ba8dc7b0')
+    geolocalizador = GeolocalizadorNominatim('My geoooo',1)
+    #geolocalizador = GeolocalizadorDatosGobar(0)
+    #geolocalizador = GeolocalizadorHere('WVGOKd5D1jL7mKdGX72JwyLDBLnyVjbVEup57gClXT4',1)
+    #geolocalizador = GeolocalizadorLocationIQ('pk.ba47f83040b10421760894962582fcfc',1)
+    #geolocalizador = GeolocalizadorOpenCage('6590cde716274d6fa8073f08c1b072e6',1)
+    #geolocalizador = GeolocalizadorPositionStack('e665bce8e383c3af9321bfe5ba8dc7b0',1)
     
     procesar_direcciones('C:/Users/Usuario/Desktop/OVS-caminero/direccionesCSV.csv', 'C:/Users/Usuario/Desktop/OVS-caminero/direcciones_geolocalizadas.csv', geolocalizador)

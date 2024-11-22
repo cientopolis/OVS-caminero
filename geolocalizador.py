@@ -17,19 +17,40 @@ class GeolocalizadorNominatim(Geolocalizador):
         self.user_agent = user_agent
         self.delay = delay
     
-    def obtener_coordenadas(self, direccion, provincia, localidad):
+    def obtener_coordenadas(self, direccion, localidad, provincia = None):
 
         direccion_codificada = urllib.parse.quote(direccion)
-        url = f"https://nominatim.openstreetmap.org/search?street={direccion_codificada}&city={localidad}&format=json"
-        response = requests.get(url)
+        localidad_codificada = urllib.parse.quote(localidad)
+        url = f"https://nominatim.openstreetmap.org/search?street={direccion_codificada}&city={localidad_codificada}&format=json"
+        headers = {'User-Agent': self.user_agent}
+
+        response = requests.get(url, headers=headers)
         data = response.json()
-        
+
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        latitud = data[0]['lat']
-        longitud = data[0]['lon']
-        return latitud, longitud
+        # Buscar la mejor dirección con base en la localidad
+        mejor_direccion = self.buscar_mejor_direccion(data, localidad)
+        if mejor_direccion:
+            latitud = mejor_direccion['lat']
+            longitud = mejor_direccion['lon']
+            return latitud, longitud
 
+        return None, None
+
+    def buscar_mejor_direccion(self, data, localidad):
+        """
+        Busca el mejor resultado en los datos devueltos por Nominatim.
+        """
+        localidad = localidad.lower()
+
+        return next(
+            (
+                direccion for direccion in data
+                if localidad in direccion.get('display_name', '').lower()
+            ),
+            None  # Valor por defecto si no hay coincidencias
+        )
 
 class GeolocalizadorDatosGobar(Geolocalizador):
     def __init__(self, delay):
@@ -45,12 +66,15 @@ class GeolocalizadorDatosGobar(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
 
-        if data['direcciones']:
-            # Se devuelve la primer direccion de la lista
-           return data['direcciones'][0]['ubicacion']['lat'], data['direcciones'][0]['ubicacion']['lon']
-        else:
-           # Manejo del caso cuando no se encuentran direcciones
-           return None, None
+        if data.get('direcciones'):
+        # Busca la mejor dirección dentro de las devueltas
+            mejor_direccion = self.buscar_mejor_direccion(
+            direccion_original=(direccion, localidad),
+            direcciones_api=data['direcciones']
+        )
+        if mejor_direccion:
+            return mejor_direccion['latitud'], mejor_direccion['longitud']
+        return None, None
     
     def procesar_direccion(self,direccion):
         """
@@ -132,7 +156,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
     
     def procesar_direcciones(self, direcciones):
         """
-        Procesa una lista de direcciones, obteniendo la mejor dirección por localidad.
+        Procesa una lista de direcciones, obteniendo la mejor dirección por cada una a traves del metodo buscar_mejor_direccion.
         """
         resultados_normalizados = self.normalizar_direcciones_por_lotes(direcciones)
         normalizadas = []
@@ -156,7 +180,6 @@ class GeolocalizadorHere(Geolocalizador):
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
 
-        
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
         url = f"https://geocode.search.hereapi.com/v1/geocode?q={direccion_codificada}&apiKey={self.api_key}"
@@ -165,10 +188,34 @@ class GeolocalizadorHere(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        latitud = data['items'][0]['position']['lat']
-        longitud = data['items'][0]['position']['lng']
-        return latitud, longitud
+        if not data.get('items'):
+            raise Exception("No se encontraron resultados para la dirección proporcionada.")
 
+        # Buscar la mejor dirección
+        mejor_direccion = self.buscar_mejor_direccion(data['items'], localidad)
+
+        if mejor_direccion:
+            latitud = mejor_direccion['position']['lat']
+            longitud = mejor_direccion['position']['lng']
+            return latitud, longitud
+        else:
+            raise Exception("No se encontró una dirección que coincida con la localidad proporcionada.")        
+
+    def buscar_mejor_direccion(self, data, localidad):
+        """
+        Busca la primera dirección que coincida con la localidad en los resultados.
+        """
+        localidad = localidad.lower()
+        
+        for direccion in data:
+            # Extraer la localidad del resultado actual
+            localidad_resultado = direccion.get('address', {}).get('city', '').lower()
+            
+            if localidad and localidad == localidad_resultado:
+                return direccion  # Devolver el primer resultado coincidente
+
+        return None  # Si no hay coincidencias, devuelve None
+    
 class GeolocalizadorLocationIQ(Geolocalizador):
     def __init__(self, api_key, delay):
         self.api_key = api_key
@@ -185,9 +232,30 @@ class GeolocalizadorLocationIQ(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        latitud = data[0]['lat']
-        longitud = data[0]['lon']
-        return latitud, longitud
+        # Filtrar y obtener la mejor dirección
+        mejor_direccion = self.buscar_mejor_direccion(data, localidad)
+        if mejor_direccion:
+            latitud = mejor_direccion['lat']
+            longitud = mejor_direccion['lon']
+            return latitud, longitud
+        return None, None
+    
+    def buscar_mejor_direccion(self, data, localidad):
+        """
+        Busca la mejor dirección en los resultados de LocationIQ que coincida con la localidad esperada.
+        """
+        localidad = localidad.lower() if localidad else None
+
+        # Filtrar por coincidencia en 'address' dentro de los resultados devueltos
+        mejor_direccion = next(
+            (
+                direccion for direccion in data
+                if localidad in direccion.get('display_name', '').lower()
+            ),
+            None  # Si no hay coincidencias, devuelve None
+        )
+        return mejor_direccion
+
 
 class GeolocalizadorOpenCage(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -196,7 +264,6 @@ class GeolocalizadorOpenCage(Geolocalizador):
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
 
-        
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
         url = f"https://api.opencagedata.com/geocode/v1/json?q={direccion_codificada}&key={self.api_key}"
@@ -205,9 +272,29 @@ class GeolocalizadorOpenCage(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        latitud = data['results'][0]['geometry']['lat']
-        longitud = data['results'][0]['geometry']['lng']
-        return latitud, longitud
+        # Filtrar y obtener la mejor dirección
+        mejor_direccion = self.buscar_mejor_direccion(data.get('results', []), localidad)
+        if mejor_direccion:
+            latitud = mejor_direccion['geometry']['lat']
+            longitud = mejor_direccion['geometry']['lng']
+            return latitud, longitud
+        return None, None
+    
+    def buscar_mejor_direccion(self, resultados, localidad):
+        """
+        Busca la mejor dirección en los resultados de OpenCage que coincida con la localidad esperada.
+        """
+        localidad = localidad.lower() 
+
+        # Filtrar por coincidencia en 'components' dentro de los resultados devueltos
+        mejor_direccion = next(
+            (
+                resultado for resultado in resultados
+                if localidad in resultado.get('formatted', '').lower()
+            ),
+            None  # Si no hay coincidencias, devuelve None
+        )
+        return mejor_direccion
 
 class GeolocalizadorPositionStack(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -224,6 +311,26 @@ class GeolocalizadorPositionStack(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        latitud = data['data'][0]['latitude']
-        longitud = data['data'][0]['longitude']
-        return latitud, longitud
+        # Verificamos que la clave data de PositionStack exista y no esté vacía para que no haya error
+        if 'data' in data and data['data']:
+            mejor_direccion = self.buscar_mejor_direccion(data['data'], localidad)
+            if mejor_direccion:
+                return mejor_direccion['latitude'], mejor_direccion['longitude']
+        
+        return None, None
+    def buscar_mejor_direccion(self, resultados, localidad):
+        """
+        Busca la mejor dirección basada en la localidad especificada.
+        """
+        localidad = localidad.lower()
+        
+        # Filtra los resultados que coincidan con la localidad
+        mejor_direccion = next(
+            (resultado for resultado in resultados
+             if localidad and localidad in (resultado.get('locality', '').lower() or
+                                            resultado.get('region', '').lower())),
+            None  # Devuelve None si no hay coincidencias
+        )
+
+        # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
+        return mejor_direccion
