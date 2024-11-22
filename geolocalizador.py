@@ -11,6 +11,7 @@ class Geolocalizador(ABC):
     def obtener_coordenadas(self, direccion, provincia, localidad):
         pass
 
+
 class GeolocalizadorNominatim(Geolocalizador):
     def __init__(self, user_agent, delay):
         self.user_agent = user_agent
@@ -28,6 +29,7 @@ class GeolocalizadorNominatim(Geolocalizador):
         latitud = data[0]['lat']
         longitud = data[0]['lon']
         return latitud, longitud
+
 
 class GeolocalizadorDatosGobar(Geolocalizador):
     def __init__(self, delay):
@@ -101,27 +103,33 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                 print(f"Excepción en el lote {i // 1000 + 1}: {e}")
 
         return resultados    
-    def buscar_mejor_direccion(self,direccion_original,direcciones_api):
+    
+    def buscar_mejor_direccion(self, direccion_original, direcciones_api):
         """
         Para una dirección busca la mejor direccion entre la lista que devuelve la API.
+        Utiliza un generador con next() para encontrar la mejor dirección.
         """
-        mejor_direccion = None
-        distrito_original = direccion_original[1]  # Se asume que el índice 1 es la localidad original
-
-        for dir_api in direcciones_api:
-            distrito_api = dir_api.get('localidad_censal', {}).get('nombre', '').lower()
-
-            # Comparación de localidades
-            if distrito_original.lower() == distrito_api:
-                mejor_direccion = {
+        distrito_original = direccion_original[1].lower()  # Se asume que el indice 1 es la localidad original
+    
+        # Buscar la mejor dirección usando un generador con next
+        mejor_direccion = next(
+            (
+                {
                     'direccion': dir_api.get('nomenclatura'),
-                    'localidad': dir_api.get('localidad_censal',{}).get('nombre'),
+                    'localidad': dir_api.get('localidad_censal', {}).get('nombre'),
                     'latitud': dir_api.get('ubicacion', {}).get('lat'),
                     'longitud': dir_api.get('ubicacion', {}).get('lon'),
                 }
-                break  # Si encontramos una coincidencia exacta, podemos salir del bucle
-
+                for dir_api in direcciones_api
+                if dir_api.get('localidad_censal', {}).get('nombre', '').lower() == distrito_original
+            ),
+            None  # Valor por defecto si no se encuentra una coincidencia
+        )
+    
         return mejor_direccion
+
+
+    
     def procesar_direcciones(self, direcciones):
         """
         Procesa una lista de direcciones, obteniendo la mejor dirección por localidad.
