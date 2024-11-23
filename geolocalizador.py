@@ -99,7 +99,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
             for dir in lote:
                 direccion_procesada = self.procesar_direccion(dir[0])
                 if direccion_procesada:
-                    direccion_data = {"direccion": direccion_procesada, "max": 3}
+                    direccion_data = {"direccion": direccion_procesada, "max": 5}
                     if dir[1]:  # Si la localidad es proporcionada, incluirla
                         direccion_data["localidad_censal"] = dir[1]
                     payload["direcciones"].append(direccion_data)
