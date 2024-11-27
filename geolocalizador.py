@@ -29,7 +29,7 @@ class GeolocalizadorNominatim(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
-        # Buscar la mejor dirección con base en la localidad
+        # Buscar la mejor dirección en base a la localidad
         mejor_direccion = self.buscar_mejor_direccion(data, localidad)
         if mejor_direccion:
             latitud = mejor_direccion['lat']
@@ -38,16 +38,17 @@ class GeolocalizadorNominatim(Geolocalizador):
 
         return None, None
 
-    def buscar_mejor_direccion(self, data, localidad):
+    def buscar_mejor_direccion(self, resultados, localidad):
         """
         Busca el mejor resultado en los datos devueltos por Nominatim.
         """
-        localidad = localidad.lower()
-
+        localidad = localidad.lower() if localidad else None
+        # La funcion next devuelve el siguiente elemento del iterador que cumple la 
+        # condicion de localidad 
         return next(
             (
-                direccion for direccion in data
-                if localidad in direccion.get('display_name', '').lower()
+                resultado for resultado in resultados
+                if localidad in resultado.get('display_name', '').lower()
             ),
             None  # Valor por defecto si no hay coincidencias
         )
@@ -198,23 +199,24 @@ class GeolocalizadorHere(Geolocalizador):
             latitud = mejor_direccion['position']['lat']
             longitud = mejor_direccion['position']['lng']
             return latitud, longitud
-        else:
-            raise Exception("No se encontró una dirección que coincida con la localidad proporcionada.")        
+        return None, None
 
-    def buscar_mejor_direccion(self, data, localidad):
+    def buscar_mejor_direccion(self, resultados, localidad):
         """
         Busca la primera dirección que coincida con la localidad en los resultados.
         """
-        localidad = localidad.lower()
-        
-        for direccion in data:
-            # Extraer la localidad del resultado actual
-            localidad_resultado = direccion.get('address', {}).get('city', '').lower()
-            
-            if localidad and localidad == localidad_resultado:
-                return direccion  # Devolver el primer resultado coincidente
+        localidad = localidad.lower() if localidad else None
+        # Filtra los resultados que coincidan con la localidad
+        mejor_direccion = next(
+            (resultado for resultado in resultados
+             if localidad and localidad in (resultado.get('address', {}).get('city', '').lower())
+             ),
+            None  # Devuelve None si no hay coincidencias
+        )
 
-        return None  # Si no hay coincidencias, devuelve None
+        # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
+        return mejor_direccion
+        
     
 class GeolocalizadorLocationIQ(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -223,7 +225,6 @@ class GeolocalizadorLocationIQ(Geolocalizador):
 
     def obtener_coordenadas(self, direccion, provincia, localidad):
 
-        
         direccion_completa = f"{direccion}, {localidad}, {provincia}"
         direccion_codificada = urllib.parse.quote(direccion_completa)
         url = f"https://us1.locationiq.com/v1/search.php?key={self.api_key}&q={direccion_codificada}&format=json"
@@ -284,9 +285,8 @@ class GeolocalizadorOpenCage(Geolocalizador):
         """
         Busca la mejor dirección en los resultados de OpenCage que coincida con la localidad esperada.
         """
-        localidad = localidad.lower() 
+        localidad = localidad.lower() if localidad else None
 
-        # Filtrar por coincidencia en 'components' dentro de los resultados devueltos
         mejor_direccion = next(
             (
                 resultado for resultado in resultados
@@ -322,7 +322,7 @@ class GeolocalizadorPositionStack(Geolocalizador):
         """
         Busca la mejor dirección basada en la localidad especificada.
         """
-        localidad = localidad.lower()
+        localidad = localidad.lower() if localidad else None
         
         # Filtra los resultados que coincidan con la localidad
         mejor_direccion = next(
