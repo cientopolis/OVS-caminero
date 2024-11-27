@@ -27,7 +27,7 @@ def procesar_direcciones(input_csv, output_csv, geolocalizador):
     """
     Lee direcciones de un archivo CSV de entrada, las geolocaliza y guarda el resultado en un CSV de salida.
     """
-    with open(input_csv, mode="r", newline="") as csvfile:
+    with open(input_csv, mode="r", newline="",encoding="latin-1") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         fieldnames = ["direccion", "latitud", "longitud", "provincia", "localidad"]
 
