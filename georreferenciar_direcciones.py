@@ -66,7 +66,7 @@ total_direcciones = len(direcciones)
 # Obtener el número de direcciones a procesar
 max_direcciones = obtener_numero_direcciones_maximas(total_direcciones)
 
-# Limitar las direcciones a procesar
+# Limitar las direcciones a procesar a lo que quiera el usuario
 direcciones = direcciones[:max_direcciones] if max_direcciones else direcciones
 
 # Crear instancia del geolocalizador

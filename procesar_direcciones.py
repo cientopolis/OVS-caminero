@@ -65,7 +65,7 @@ def iniciar_interfaz():
     Crea la interfaz gráfica para seleccionar archivos y procesar direcciones con un geolocalizador.
     """
     root = tk.Tk()
-    root.title("Geolocalizador CSV")
+    root.title("Geolocalizador con APIS")
 
     input_file = tk.StringVar()
     output_file = tk.StringVar()
