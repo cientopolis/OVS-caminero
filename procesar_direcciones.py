@@ -9,7 +9,6 @@ from geolocalizador import (
     GeolocalizadorOpenCage,
     GeolocalizadorPositionStack,
 )
-import threading
 
 def seleccionar_archivo_entrada():
     return filedialog.askopenfilename(
@@ -24,11 +23,11 @@ def seleccionar_archivo_salida():
         filetypes=[("Archivos CSV", "*.csv")],
     )
 
-def procesar_direcciones(input_csv, output_csv, geolocalizador, update_status_callback):
+def procesar_direcciones(input_csv, output_csv, geolocalizador):
     """
     Lee direcciones de un archivo CSV de entrada, las geolocaliza y guarda el resultado en un CSV de salida.
     """
-    with open(input_csv, mode="r", newline="", encoding="latin-1") as csvfile:
+    with open(input_csv, mode="r", newline="",encoding="latin-1") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         fieldnames = ["direccion", "latitud", "longitud", "provincia", "localidad"]
 
@@ -36,7 +35,7 @@ def procesar_direcciones(input_csv, output_csv, geolocalizador, update_status_ca
             writer = csv.DictWriter(outputfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            for i, row in enumerate(reader):
+            for row in reader:
                 direccion = row["direccion"]
                 provincia = row["provincia"]
                 localidad = row["localidad"]
@@ -57,15 +56,13 @@ def procesar_direcciones(input_csv, output_csv, geolocalizador, update_status_ca
                         "provincia": provincia,
                         "localidad": localidad,
                     })
-                # Actualizar el progreso de procesamiento
-                update_status_callback(f"Procesando dirección {i + 1}...")
 
 def iniciar_interfaz():
     """
     Crea la interfaz gráfica para seleccionar archivos y procesar direcciones con un geolocalizador.
     """
     root = tk.Tk()
-    root.title("Geolocalizador con APIS")
+    root.title("Geolocalizador CSV")
 
     input_file = tk.StringVar()
     output_file = tk.StringVar()
@@ -84,10 +81,6 @@ def iniciar_interfaz():
     }
 
     geolocalizadores_con_clave = {"Here", "LocationIQ", "OpenCage", "PositionStack"}
-
-    # Crear un widget para mostrar el estado de la carga
-    status_label = tk.Label(root, text="", fg="blue")
-    status_label.grid(row=6, column=0, columnspan=3)
 
     def seleccionar_input():
         archivo = seleccionar_archivo_entrada()
@@ -111,39 +104,20 @@ def iniciar_interfaz():
             return
 
         try:
-            # Deshabilitar el botón de "Procesar" para evitar múltiples clics
-            procesar_button.config(state="disabled")
-            status_label.config(text="Cargando... Espere por favor...")
-
             # Crear instancia del geolocalizador usando el diccionario
             geolocalizador = geolocalizadores[geolocalizador_nombre.get()]()
         except KeyError:
             messagebox.showerror("Error", f"Geolocalizador '{geolocalizador_nombre.get()}' no soportado.")
-            procesar_button.config(state="normal")
             return
         except Exception as e:
             messagebox.showerror("Error", f"Error al configurar el geolocalizador: {e}")
-            procesar_button.config(state="normal")
             return
 
-        # Usar threading para no bloquear la interfaz gráfica
-        def procesar_en_hilo():
-            try:
-                procesar_direcciones(input_file.get(), output_file.get(), geolocalizador, update_status)
-                messagebox.showinfo("Completado", f"El procesamiento se completó. Archivo guardado en:\n{output_file.get()}")
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al procesar las direcciones: {e}")
-            finally:
-                # Restaurar el estado de la interfaz después de finalizar
-                procesar_button.config(state="normal")
-                status_label.config(text="")
-
-        def update_status(status_text):
-            # Esta función actualiza el estado del procesamiento
-            status_label.config(text=status_text)
-
-        # Iniciar el proceso en un hilo separado para que la interfaz gráfica no se congele
-        threading.Thread(target=procesar_en_hilo, daemon=True).start()
+        try:
+            procesar_direcciones(input_file.get(), output_file.get(), geolocalizador)
+            messagebox.showinfo("Completado", f"El procesamiento se completó. Archivo guardado en:\n{output_file.get()}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al procesar las direcciones: {e}")
 
     def cerrar():
         root.quit()  # Detiene el bucle principal de la interfaz
@@ -170,15 +144,12 @@ def iniciar_interfaz():
     tk.Label(frame, text="Delay (segundos):").grid(row=4, column=0, sticky="w")
     tk.Entry(frame, textvariable=delay, width=10).grid(row=4, column=1, sticky="w")
 
-    # Botón para procesar
-    procesar_button = tk.Button(frame, text="Procesar", command=procesar, bg="green", fg="white")
-    procesar_button.grid(row=5, column=0, columnspan=3)
+    tk.Button(frame, text="Procesar", command=procesar, bg="green", fg="white").grid(row=5, column=0, columnspan=3)
 
     # Botón de cerrar
-    tk.Button(frame, text="Cerrar", command=cerrar, bg="red", fg="white").grid(row=7, column=0, columnspan=3)
+    tk.Button(frame, text="Cerrar", command=cerrar, bg="red", fg="white").grid(row=6, column=0, columnspan=3)
 
     root.mainloop()
 
 if __name__ == "__main__":
     iniciar_interfaz()
-

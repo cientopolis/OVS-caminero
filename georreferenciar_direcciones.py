@@ -75,8 +75,10 @@ geolocalizador = GeolocalizadorDatosGobar(0)
 # Procesar direcciones
 normalizadas = geolocalizador.procesar_direcciones(direcciones)
 
+
 # Convertir el resultado a DataFrame
 df_normalizadas = pd.DataFrame(normalizadas)
+
 
 # Escribir el resultado en un nuevo archivo CSV
 df_normalizadas.to_csv(output_file, index=False)

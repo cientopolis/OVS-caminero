@@ -43,15 +43,9 @@ class GeolocalizadorNominatim(Geolocalizador):
         Busca el mejor resultado en los datos devueltos por Nominatim.
         """
         localidad = localidad.lower() if localidad else None
-        # La funcion next devuelve el siguiente elemento del iterador que cumple la 
-        # condicion de localidad 
-        return next(
-            (
-                resultado for resultado in resultados
-                if localidad in resultado.get('display_name', '').lower()
-            ),
-            None  # Valor por defecto si no hay coincidencias
-        )
+        
+        return [f for f in resultados if "display_name" in f and localidad in f["display_name"].lower()][0]
+
 
 class GeolocalizadorDatosGobar(Geolocalizador):
     def __init__(self, delay):
@@ -67,15 +61,13 @@ class GeolocalizadorDatosGobar(Geolocalizador):
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
 
-        if data.get('direcciones'):
+        if data:
         # Busca la mejor dirección dentro de las devueltas
-            mejor_direccion = self.buscar_mejor_direccion(
-            direccion_original=(direccion, localidad),
-            direcciones_api=data['direcciones']
-        )
+            mejor_direccion = self.buscar_mejor_direccion(data,localidad)
         if mejor_direccion:
-            return mejor_direccion['latitud'], mejor_direccion['longitud']
+            return mejor_direccion['ubicacion']['lat'], mejor_direccion['ubicacion']['lon']
         return None, None
+        
     
     def procesar_direccion(self,direccion):
         """
@@ -95,6 +87,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         for i in range(0, len(direcciones), 1000):
             lote = direcciones[i:i + 1000]
             payload = {"direcciones": []}
+          
 
             # Procesar cada dirección en el lote
             for dir in lote:
@@ -106,6 +99,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                     payload["direcciones"].append(direccion_data)
 
             # Si el lote no contiene direcciones, lo saltamos
+
             if not payload["direcciones"]:
                 print(f"Lote {i // 1000 + 1} está vacío después del procesamiento.")
                 continue
@@ -129,30 +123,14 @@ class GeolocalizadorDatosGobar(Geolocalizador):
 
         return resultados    
     
-    def buscar_mejor_direccion(self, direccion_original, direcciones_api):
+    def buscar_mejor_direccion(self, direcciones_api,localidad):
         """
         Para una dirección busca la mejor direccion entre la lista que devuelve la API.
-        Utiliza un generador con next() para encontrar la mejor dirección.
         """
-        distrito_original = direccion_original[1].lower()  # Se asume que el indice 1 es la localidad original
-    
-        # Buscar la mejor dirección usando un generador con next
-        mejor_direccion = next(
-            (
-                {
-                    'direccion': dir_api.get('nomenclatura'),
-                    'localidad': dir_api.get('localidad_censal', {}).get('nombre'),
-                    'latitud': dir_api.get('ubicacion', {}).get('lat'),
-                    'longitud': dir_api.get('ubicacion', {}).get('lon'),
-                }
-                for dir_api in direcciones_api
-                if dir_api.get('localidad_censal', {}).get('nombre', '').lower() == distrito_original
-            ),
-            None  # Valor por defecto si no se encuentra una coincidencia
-        )
-    
-        return mejor_direccion
-
+        
+        localidad = localidad.lower()  
+        coincidencias = [f for f in direcciones_api if f.get("localidad_censal", {}).get("nombre").lower() == localidad]
+        return coincidencias[0] if coincidencias else None
 
     
     def procesar_direcciones(self, direcciones):
@@ -166,11 +144,18 @@ class GeolocalizadorDatosGobar(Geolocalizador):
             if resultado['cantidad'] > 0:
                 direcciones_api = resultado['direcciones']
                 direccion_original = direcciones[i]
-                mejor_direccion = self.buscar_mejor_direccion(direccion_original, direcciones_api)
+                
+                mejor_direccion = self.buscar_mejor_direccion(direcciones_api, direccion_original[1])
 
                 if mejor_direccion:
-                    normalizadas.append(mejor_direccion)
-                    
+                    # Agregar una tupla con los datos a la lista
+                    normalizadas.append({
+                        "calle": mejor_direccion['calle']['nombre'],
+                        "altura": mejor_direccion['altura']['valor'],
+                        "latitud": mejor_direccion['ubicacion']['lat'],
+                        "longitud": mejor_direccion['ubicacion']['lon']
+                        })
+                
         return normalizadas
         
     
@@ -334,3 +319,6 @@ class GeolocalizadorPositionStack(Geolocalizador):
 
         # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
         return mejor_direccion
+    
+geolocalizador = GeolocalizadorDatosGobar(0)
+
