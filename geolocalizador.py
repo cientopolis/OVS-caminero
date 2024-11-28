@@ -191,7 +191,12 @@ class GeolocalizadorHere(Geolocalizador):
         Busca la primera dirección que coincida con la localidad en los resultados.
         """
         localidad = localidad.lower() if localidad else None
-        # Filtra los resultados que coincidan con la localidad
+        #return [f for f in resultados if "display_name" in f and localidad in f["display_name"].lower()][0]
+        coincidencias = [f for f in resultados if localidad == f["address"]["city"].lower()]
+        return coincidencias[0] if coincidencias else None
+        
+    """
+    # Filtra los resultados que coincidan con la localidad
         mejor_direccion = next(
             (resultado for resultado in resultados
              if localidad and localidad in (resultado.get('address', {}).get('city', '').lower())
@@ -201,7 +206,7 @@ class GeolocalizadorHere(Geolocalizador):
 
         # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
         return mejor_direccion
-        
+      """  
     
 class GeolocalizadorLocationIQ(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -319,6 +324,5 @@ class GeolocalizadorPositionStack(Geolocalizador):
 
         # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
         return mejor_direccion
-    
-geolocalizador = GeolocalizadorDatosGobar(0)
+
 

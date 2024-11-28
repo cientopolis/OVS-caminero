@@ -1,6 +1,6 @@
-import csv
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
+import csv
 from geolocalizador import (
     GeolocalizadorNominatim,
     GeolocalizadorDatosGobar,
@@ -103,14 +103,25 @@ def iniciar_interfaz():
             messagebox.showerror("Error", "Debe ingresar la clave API para el geolocalizador seleccionado.")
             return
 
+        # Obtener el geolocalizador seleccionado directamente
+        selected_geolocalizador = geolocalizador_nombre.get()
+        print(f"Geolocalizador seleccionado: '{selected_geolocalizador}'")  # Debugging line
+
+        if selected_geolocalizador not in geolocalizadores:
+            messagebox.showerror("Error", f"El geolocalizador '{selected_geolocalizador}' no está disponible.")
+            return
+
         try:
             # Crear instancia del geolocalizador usando el diccionario
-            geolocalizador = geolocalizadores[geolocalizador_nombre.get()]()
-        except KeyError:
-            messagebox.showerror("Error", f"Geolocalizador '{geolocalizador_nombre.get()}' no soportado.")
+            geolocalizador = geolocalizadores[selected_geolocalizador]()
+
+            # Verificar si la creación fue exitosa
+            print(f"Geolocalizador '{selected_geolocalizador}' creado exitosamente.")  # Debugging line
+        except KeyError as e:
+            messagebox.showerror("Error", f"Geolocalizador '{selected_geolocalizador}' no soportado. Error: {e}")
             return
         except Exception as e:
-            messagebox.showerror("Error", f"Error al configurar el geolocalizador: {e}")
+            messagebox.showerror("Error", f"Error al configurar el geolocalizador: {str(e)}")
             return
 
         try:
@@ -118,6 +129,9 @@ def iniciar_interfaz():
             messagebox.showinfo("Completado", f"El procesamiento se completó. Archivo guardado en:\n{output_file.get()}")
         except Exception as e:
             messagebox.showerror("Error", f"Error al procesar las direcciones: {e}")
+
+    def seleccionar_geolocalizador(nombre):
+        geolocalizador_nombre.set(nombre)
 
     def cerrar():
         root.quit()  # Detiene el bucle principal de la interfaz
@@ -135,19 +149,31 @@ def iniciar_interfaz():
     tk.Entry(frame, textvariable=output_file, width=40).grid(row=1, column=1)
     tk.Button(frame, text="Seleccionar", command=seleccionar_output).grid(row=1, column=2)
 
-    tk.Label(frame, text="Geolocalizador:").grid(row=2, column=0, sticky="w")
-    ttk.Combobox(frame, textvariable=geolocalizador_nombre, values=list(geolocalizadores.keys()), state="readonly").grid(row=2, column=1)
+    tk.Label(frame, text="Seleccionar Geolocalizador:").grid(row=2, column=0, sticky="w")
+    
+    # Botones para seleccionar el geolocalizador
+    botones_geolocalizadores = [
+        ("Nominatim", "Nominatim"),
+        ("DatosGobAr", "DatosGobAr"),
+        ("Here", "Here"),
+        ("LocationIQ", "LocationIQ"),
+        ("OpenCage", "OpenCage"),
+        ("PositionStack", "PositionStack")
+    ]
+    
+    for idx, (label, nombre) in enumerate(botones_geolocalizadores):
+        tk.Button(frame, text=label, command=lambda nombre=nombre: seleccionar_geolocalizador(nombre)).grid(row=2 + idx, column=1)
 
-    tk.Label(frame, text="Clave API (si aplica):").grid(row=3, column=0, sticky="w")
-    tk.Entry(frame, textvariable=clave_api, width=40).grid(row=3, column=1)
+    tk.Label(frame, text="Clave API (si aplica):").grid(row=8, column=0, sticky="w")
+    tk.Entry(frame, textvariable=clave_api, width=40).grid(row=8, column=1)
 
-    tk.Label(frame, text="Delay (segundos):").grid(row=4, column=0, sticky="w")
-    tk.Entry(frame, textvariable=delay, width=10).grid(row=4, column=1, sticky="w")
+    tk.Label(frame, text="Delay (segundos):").grid(row=9, column=0, sticky="w")
+    tk.Entry(frame, textvariable=delay, width=10).grid(row=9, column=1, sticky="w")
 
-    tk.Button(frame, text="Procesar", command=procesar, bg="green", fg="white").grid(row=5, column=0, columnspan=3)
+    tk.Button(frame, text="Procesar", command=procesar, bg="green", fg="white").grid(row=10, column=0, columnspan=3)
 
     # Botón de cerrar
-    tk.Button(frame, text="Cerrar", command=cerrar, bg="red", fg="white").grid(row=6, column=0, columnspan=3)
+    tk.Button(frame, text="Cerrar", command=cerrar, bg="red", fg="white").grid(row=11, column=0, columnspan=3)
 
     root.mainloop()
 
