@@ -5,12 +5,12 @@ import urllib.parse
 import re
 import json
 
+
     
 class Geolocalizador(ABC):
     @abstractmethod
     def obtener_coordenadas(self, direccion, provincia, localidad):
         pass
-
 
 class GeolocalizadorNominatim(Geolocalizador):
     def __init__(self, user_agent, delay):
@@ -191,22 +191,10 @@ class GeolocalizadorHere(Geolocalizador):
         Busca la primera dirección que coincida con la localidad en los resultados.
         """
         localidad = localidad.lower() if localidad else None
-        #return [f for f in resultados if "display_name" in f and localidad in f["display_name"].lower()][0]
+        
         coincidencias = [f for f in resultados if localidad == f["address"]["city"].lower()]
         return coincidencias[0] if coincidencias else None
         
-    """
-    # Filtra los resultados que coincidan con la localidad
-        mejor_direccion = next(
-            (resultado for resultado in resultados
-             if localidad and localidad in (resultado.get('address', {}).get('city', '').lower())
-             ),
-            None  # Devuelve None si no hay coincidencias
-        )
-
-        # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
-        return mejor_direccion
-      """  
     
 class GeolocalizadorLocationIQ(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -231,23 +219,14 @@ class GeolocalizadorLocationIQ(Geolocalizador):
             return latitud, longitud
         return None, None
     
-    def buscar_mejor_direccion(self, data, localidad):
+    def buscar_mejor_direccion(self, resultados, localidad):
         """
         Busca la mejor dirección en los resultados de LocationIQ que coincida con la localidad esperada.
         """
         localidad = localidad.lower() if localidad else None
-
-        # Filtrar por coincidencia en 'address' dentro de los resultados devueltos
-        mejor_direccion = next(
-            (
-                direccion for direccion in data
-                if localidad in direccion.get('display_name', '').lower()
-            ),
-            None  # Si no hay coincidencias, devuelve None
-        )
-        return mejor_direccion
-
-
+        coincidencias = [f for f in resultados if localidad in f["display_name"].lower()]
+        return coincidencias[0] if coincidencias else None
+   
 class GeolocalizadorOpenCage(Geolocalizador):
     def __init__(self, api_key, delay):
         self.api_key = api_key
@@ -260,7 +239,7 @@ class GeolocalizadorOpenCage(Geolocalizador):
         url = f"https://api.opencagedata.com/geocode/v1/json?q={direccion_codificada}&key={self.api_key}"
         response = requests.get(url)
         data = response.json()
-
+        
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
         # Filtrar y obtener la mejor dirección
@@ -275,16 +254,11 @@ class GeolocalizadorOpenCage(Geolocalizador):
         """
         Busca la mejor dirección en los resultados de OpenCage que coincida con la localidad esperada.
         """
+       
         localidad = localidad.lower() if localidad else None
+        coincidencias = [f for f in resultados if localidad in f["formatted"].lower()]
+        return coincidencias[0] if coincidencias else None
 
-        mejor_direccion = next(
-            (
-                resultado for resultado in resultados
-                if localidad in resultado.get('formatted', '').lower()
-            ),
-            None  # Si no hay coincidencias, devuelve None
-        )
-        return mejor_direccion
 
 class GeolocalizadorPositionStack(Geolocalizador):
     def __init__(self, api_key, delay):
@@ -298,31 +272,23 @@ class GeolocalizadorPositionStack(Geolocalizador):
         url = f"http://api.positionstack.com/v1/forward?access_key={self.api_key}&query={direccion_codificada}"
         response = requests.get(url)
         data = response.json()
-
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
         
         # Verificamos que la clave data de PositionStack exista y no esté vacía para que no haya error
+        mejor_direccion = self.buscar_mejor_direccion(data['data'], localidad)
         if 'data' in data and data['data']:
             mejor_direccion = self.buscar_mejor_direccion(data['data'], localidad)
             if mejor_direccion:
                 return mejor_direccion['latitude'], mejor_direccion['longitude']
-        
-        return None, None
+
     def buscar_mejor_direccion(self, resultados, localidad):
         """
         Busca la mejor dirección basada en la localidad especificada.
         """
-        localidad = localidad.lower() if localidad else None
         
-        # Filtra los resultados que coincidan con la localidad
-        mejor_direccion = next(
-            (resultado for resultado in resultados
-             if localidad and localidad in (resultado.get('locality', '').lower() or
-                                            resultado.get('region', '').lower())),
-            None  # Devuelve None si no hay coincidencias
-        )
+        localidad = localidad.lower() if localidad else None       
+        coincidencias = [f for f in resultados if localidad in f["label"].lower()]
+        return coincidencias[0] if coincidencias else None
 
-        # Devuelve el mejor resultado o el primero si no hay coincidencias exactas
-        return mejor_direccion
-
+ 
 
