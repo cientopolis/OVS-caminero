@@ -153,7 +153,8 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                         "calle": mejor_direccion['calle']['nombre'],
                         "altura": mejor_direccion['altura']['valor'],
                         "latitud": mejor_direccion['ubicacion']['lat'],
-                        "longitud": mejor_direccion['ubicacion']['lon']
+                        "longitud": mejor_direccion['ubicacion']['lon'],
+                        "localidad": mejor_direccion['localidad_censal']['nombre']
                         })
                 
         return normalizadas
