@@ -11,6 +11,7 @@ class Geolocalizador(ABC):
     @abstractmethod
     def obtener_coordenadas(self, direccion, provincia, localidad):
         pass
+    
 
 class GeolocalizadorNominatim(Geolocalizador):
     def __init__(self, user_agent, delay):
@@ -44,8 +45,8 @@ class GeolocalizadorNominatim(Geolocalizador):
         """
         localidad = localidad.lower() if localidad else None
         
-        return [f for f in resultados if "display_name" in f and localidad in f["display_name"].lower()][0]
-
+        coincidencias = [f for f in resultados if "display_name" in f and localidad in f["display_name"].lower()]
+        return coincidencias[0] if coincidencias else None
 
 class GeolocalizadorDatosGobar(Geolocalizador):
     def __init__(self, delay):
