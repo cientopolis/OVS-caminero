@@ -58,7 +58,8 @@ df.columns = df.columns.str.strip()
 
 # Filtrar direcciones no nulas y no vacías
 df = df[df['address'].notna() & (df['address'].str.strip() != '')]
-direcciones = df[['address', 'district']].dropna().values.tolist()
+direcciones = df[['address', 'district']].dropna().drop_duplicates().values.tolist()
+
 
 # Calcular total de direcciones disponibles
 total_direcciones = len(direcciones)
@@ -78,7 +79,7 @@ normalizadas = geolocalizador.procesar_direcciones(direcciones)
 
 # Convertir el resultado a DataFrame
 df_normalizadas = pd.DataFrame(normalizadas)
-
+df_normalizadas = df_normalizadas.drop_duplicates()
 
 # Escribir el resultado en un nuevo archivo CSV
 df_normalizadas.to_csv(output_file, index=False)

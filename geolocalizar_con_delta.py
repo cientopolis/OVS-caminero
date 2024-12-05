@@ -1,24 +1,36 @@
-import csv
+import pandas as pd
 from tkinter import Tk, filedialog
 from geolocalizador import GeolocalizadorDatosGobar
+import sys
+sys.path.append("/home/lifiano/.local/lib/python3.8/site-packages")
+from geopy.distance import geodesic
+
+
+# Función para calcular la distancia usando geodesic en metros
+def calcular_distancia_geodesic(lat1, lon1, lat2, lon2):
+    # Calcular la distancia geodésica entre dos puntos en metros
+    punto1 = (lat1, lon1)
+    punto2 = (lat2, lon2)
+    distancia = geodesic(punto1, punto2).meters  # Distancia en metros
+    return distancia
 
 
 def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
-    nuevas_filas = []
-
-    # Leer el archivo CSV
-    with open(archivo_csv, mode="r", newline="",encoding="latin-1") as file:
-        reader = csv.DictReader(file)
-        filas = list(reader)
+    # Leer el archivo CSV usando pandas
+    df = pd.read_csv(archivo_csv, encoding="latin-1")
 
     direcciones_modificadas = []
 
-    for fila in filas:
+    # Lista para almacenar los resultados
+    nuevas_filas = []
+
+    for i, fila in df.iterrows():
+        # CSV ingresado debe contener CALLE y ALTURA 
         calle = fila['calle']
         altura = fila.get('altura')
 
         # Saltar las filas con alturas vacías
-        if not altura or altura.strip() == "":
+        if not altura or pd.isna(altura):
             continue
 
         # Generar una altura aleatoria y sumar a la existente
@@ -43,36 +55,59 @@ def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
 
     # Obtener geolocalización para direcciones modificadas
     resultados_modificados = geolocalizador.procesar_direcciones(direcciones_modificadas)
-    print(resultados_modificados)
-    # Agregar las nuevas coordenadas al conjunto de datos
-    for i, fila in enumerate(nuevas_filas):
-        if i < len(resultados_modificados) and resultados_modificados[i] is not None:
-            resultado_modificado = resultados_modificados[i]
-            fila.update({
-                'latitud_con_delta': resultado_modificado['latitud'],
-                'longitud_con_delta': resultado_modificado['longitud']
-            })
+
+    # Crear un diccionario para mapear las direcciones modificadas a sus coordenadas
+    coordenadas_dict = {}
+    for resultado in resultados_modificados:
+        if resultado:
+            direccion = f"{resultado['calle']} {resultado['altura']}"
+            coordenadas_dict[direccion] = {
+                'latitud': resultado['latitud'],
+                'longitud': resultado['longitud']
+            }
+
+    # Contador para las direcciones no geolocalizadas
+    no_geolocalizadas = 0
+
+    # Crear un DataFrame de las nuevas filas
+    df_nuevas_filas = pd.DataFrame(nuevas_filas)
+
+    # Agregar las nuevas coordenadas y calcular la distancia
+    for i, fila in df_nuevas_filas.iterrows():
+        direccion_modificada = fila['direccion_modificada']
+        
+        # Verificar si la dirección modificada está en el diccionario de coordenadas
+        if direccion_modificada in coordenadas_dict:
+            coordenadas = coordenadas_dict[direccion_modificada]
+            df_nuevas_filas.at[i, 'latitud_con_delta'] = coordenadas['latitud']
+            df_nuevas_filas.at[i, 'longitud_con_delta'] = coordenadas['longitud']
+
+            # Calcular la distancia entre las coordenadas originales y las modificadas
+            lat1 = fila['latitud_original']
+            lon1 = fila['longitud_original']
+            lat2 = coordenadas['latitud']
+            lon2 = coordenadas['longitud']
+
+            # Verificar que ambas coordenadas no sean None antes de calcular la distancia
+            if pd.notna(lat1) and pd.notna(lon1) and pd.notna(lat2) and pd.notna(lon2):
+                distancia = calcular_distancia_geodesic(lat1, lon1, lat2, lon2)
+                df_nuevas_filas.at[i, 'distancia_delta_metros'] = distancia  # Guardar la distancia en metros
+            else:
+                df_nuevas_filas.at[i, 'distancia_delta_metros'] = None
         else:
             # Si no hay resultado para la fila, asignar valores nulos
-            fila.update({
-                'latitud_con_delta': None,
-                'longitud_con_delta': None
-            })
-
+            df_nuevas_filas.at[i, 'latitud_con_delta'] = None
+            df_nuevas_filas.at[i, 'longitud_con_delta'] = None
+            df_nuevas_filas.at[i, 'distancia_delta_metros'] = None
+            # Incrementar el contador de direcciones no geolocalizadas
+            no_geolocalizadas += 1
 
     # Guardar los resultados en un nuevo archivo CSV
     nuevo_archivo = archivo_csv.replace('.csv', '_geolocalizado.csv')
-    with open(nuevo_archivo, mode='w', encoding='latin-1', newline='') as file:
-        fieldnames = [
-            'direccion_original', 'direccion_modificada', 
-            'latitud_original', 'longitud_original', 
-            'latitud_con_delta', 'longitud_con_delta', 'localidad'
-        ]
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(nuevas_filas)
+    df_nuevas_filas.to_csv(nuevo_archivo, index=False, encoding="latin-1")
 
-    print(f"Se han guardado {len(nuevas_filas)} filas nuevas en el archivo: {nuevo_archivo}")
+    print(f"Se han guardado {len(df_nuevas_filas)} filas nuevas en el archivo: {nuevo_archivo}")
+    print(f"Total de direcciones no geolocalizadas: {no_geolocalizadas}")
 
 
 # Selección del archivo CSV
