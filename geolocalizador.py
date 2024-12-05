@@ -29,7 +29,7 @@ class GeolocalizadorNominatim(Geolocalizador):
         data = response.json()
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
-        
+        data 
         # Buscar la mejor dirección en base a la localidad
         mejor_direccion = self.buscar_mejor_direccion(data, localidad)
         if mejor_direccion:
@@ -52,23 +52,28 @@ class GeolocalizadorDatosGobar(Geolocalizador):
     def __init__(self, delay):
         self.delay = delay
         self.base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
-        
-    def obtener_coordenadas(self, direccion, provincia = None, localidad = None):
 
-        direccion_codificada = urllib.parse.quote(direccion)
-        url = f"https://apis.datos.gob.ar/georef/api/direcciones?direccion={direccion_codificada}"
-        response = requests.get(url)
+    def obtener_coordenadas(self, direccion, provincia=None, localidad=None):
+        """
+        Usa POST en lugar de GET para garantizar la consistencia.
+        """
+        direccion_procesada = self.procesar_direccion(direccion)
+        payload = {"direcciones": [{"direccion": direccion_procesada, "max": 5}]}
+        if localidad:
+            payload["direcciones"][0]["localidad_censal"] = localidad
+        if provincia:
+            payload["direcciones"][0]["provincia"] = provincia
+    
+        response = requests.post(self.base_url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
         data = response.json()
-
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
-
-        if data:
-        # Busca la mejor dirección dentro de las devueltas
-            mejor_direccion = self.buscar_mejor_direccion(data,localidad)
-        if mejor_direccion:
-            return mejor_direccion['ubicacion']['lat'], mejor_direccion['ubicacion']['lon']
+    
+        if data.get('resultados'):
+            mejor_direccion = self.buscar_mejor_direccion(data['resultados'][0]['direcciones'], localidad)
+            if mejor_direccion:
+                return mejor_direccion['ubicacion']['lat'], mejor_direccion['ubicacion']['lon']
         return None, None
-        
+
     
     def procesar_direccion(self,direccion):
         """
@@ -147,7 +152,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                 direccion_original = direcciones[i]
                 
                 mejor_direccion = self.buscar_mejor_direccion(direcciones_api, direccion_original[1])
-
+    
                 if mejor_direccion:
                     # Agregar una tupla con los datos a la lista
                     normalizadas.append({
