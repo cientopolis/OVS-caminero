@@ -1,8 +1,6 @@
 import pandas as pd
 from tkinter import Tk, filedialog
 from geolocalizador import GeolocalizadorDatosGobar
-import sys
-sys.path.append("/home/lifiano/.local/lib/python3.8/site-packages")
 from geopy.distance import geodesic
 
 

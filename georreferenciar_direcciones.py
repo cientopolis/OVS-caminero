@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
@@ -44,22 +45,22 @@ def obtener_numero_direcciones_maximas(total_direcciones):
 input_file = seleccionar_archivo_entrada()
 if not input_file:
     print("No se seleccionó un archivo de entrada. El script se detendrá.")
-    exit()
+    sys.exit()  # Usar sys.exit() para salir del script
 
 # Seleccionar el archivo de salida
 output_file = seleccionar_archivo_salida()
 if not output_file:
     print("No se seleccionó un archivo de salida. El script se detendrá.")
-    exit()
+    sys.exit()  # Usar sys.exit() para salir del script
 
 # Cargar los datos desde el archivo CSV de entrada
 df = pd.read_csv(input_file, sep=',', keep_default_na=False, on_bad_lines='skip')
 df.columns = df.columns.str.strip()
 
 # Filtrar direcciones no nulas y no vacías
+# El archivo CSV de entrada debe contener las columnas ADDRESS y DISTRICT
 df = df[df['address'].notna() & (df['address'].str.strip() != '')]
 direcciones = df[['address', 'district']].dropna().drop_duplicates().values.tolist()
-
 
 # Calcular total de direcciones disponibles
 total_direcciones = len(direcciones)
@@ -76,7 +77,6 @@ geolocalizador = GeolocalizadorDatosGobar(0)
 # Procesar direcciones
 normalizadas = geolocalizador.procesar_direcciones(direcciones)
 
-
 # Convertir el resultado a DataFrame
 df_normalizadas = pd.DataFrame(normalizadas)
 df_normalizadas = df_normalizadas.drop_duplicates()
@@ -88,4 +88,3 @@ df_normalizadas.to_csv(output_file, index=False)
 root = tk.Tk()
 root.withdraw()  # Ocultar la ventana principal
 messagebox.showinfo("Finalizado", f"Direcciones con coordenadas guardadas en: {output_file}")
-
