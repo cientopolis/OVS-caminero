@@ -157,7 +157,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                     # Agregar una tupla con los datos a la lista
                     normalizadas.append({
                         "calle": mejor_direccion['calle']['nombre'],
-                        "altura": mejor_direccion['altura']['valor'],
+                        "altura": int(mejor_direccion['altura']['valor']) if mejor_direccion['altura']['valor'] is not None else 0,
                         "latitud": mejor_direccion['ubicacion']['lat'],
                         "longitud": mejor_direccion['ubicacion']['lon'],
                         "localidad": mejor_direccion['localidad_censal']['nombre']

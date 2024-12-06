@@ -12,7 +12,7 @@ def calcular_distancia_geodesic(lat1, lon1, lat2, lon2):
     punto1 = (lat1, lon1)
     punto2 = (lat2, lon2)
     distancia = geodesic(punto1, punto2).meters  # Distancia en metros
-    return distancia
+    return round(distancia,5)
 
 
 def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
