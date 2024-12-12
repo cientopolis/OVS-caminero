@@ -14,7 +14,7 @@ def calcular_distancia_geodesic(lat1, lon1, lat2, lon2):
 
 
 def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
-    # Leer el archivo CSV usando pandas
+    # Leer el archivo CSV 
     df = pd.read_csv(archivo_csv, encoding="latin-1")
 
     direcciones_modificadas = []
@@ -33,9 +33,9 @@ def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
 
         # Generar una altura aleatoria y sumar a la existente
         delta = 20
-        altura_sumada = int(float(altura)) + delta
-
-        # Crear direcciones original y modificada
+        altura_sumada = altura + delta
+        
+        # Direccion_original es lo que se recibe y modificada es altura + delta
         direccion_original = f"{calle} {altura}"
         direccion_modificada = f"{calle} {altura_sumada}"
 
@@ -51,12 +51,15 @@ def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
             'longitud_original': fila.get('longitud')  # Conservar longitud original
         })
 
-    # Obtener geolocalización para direcciones modificadas
+    # Obtener geolocalización para direcciones modificadas con delta
+    # En resultados_modificados estan las geolocalizaciones con alturas sumadas  
     resultados_modificados = geolocalizador.procesar_direcciones(direcciones_modificadas)
 
     # Crear un diccionario para mapear las direcciones modificadas a sus coordenadas
     coordenadas_dict = {}
+    
     for resultado in resultados_modificados:
+        # Mapeamos calle y altura con las coordenadas
         if resultado:
             direccion = f"{resultado['calle']} {resultado['altura']}"
             coordenadas_dict[direccion] = {
@@ -76,7 +79,10 @@ def agregar_datos_a_nuevo_csv(archivo_csv, geolocalizador):
         
         # Verificar si la dirección modificada está en el diccionario de coordenadas
         if direccion_modificada in coordenadas_dict:
+            # Significa que la dirección modificada ha sido geolocalizada correctamente y existe una entrada en coordenadas_dict
             coordenadas = coordenadas_dict[direccion_modificada]
+            
+            # Asignamos la coordenadas que se geolocalizaron exitosamente para agregar al csv
             df_nuevas_filas.at[i, 'latitud_con_delta'] = coordenadas['latitud']
             df_nuevas_filas.at[i, 'longitud_con_delta'] = coordenadas['longitud']
 

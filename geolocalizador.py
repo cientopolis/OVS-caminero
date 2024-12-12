@@ -5,7 +5,6 @@ import urllib.parse
 import re
 import json
 
-
     
 class Geolocalizador(ABC):
     @abstractmethod
@@ -53,7 +52,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         self.delay = delay
         self.base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
 
-    def obtener_coordenadas(self, direccion, provincia=None, localidad=None):
+    def obtener_coordenadas(self, direccion, localidad, provincia=None):
         """
         Usa POST en lugar de GET para garantizar la consistencia.
         """
@@ -134,7 +133,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         Para una dirección busca la mejor direccion entre la lista que devuelve la API.
         """
         
-        localidad = localidad.lower()  
+        localidad = localidad.lower() if localidad else None 
         coincidencias = [f for f in direcciones_api if f.get("localidad_censal", {}).get("nombre").lower() == localidad]
         return coincidencias[0] if coincidencias else None
 
@@ -152,7 +151,7 @@ class GeolocalizadorDatosGobar(Geolocalizador):
                 direccion_original = direcciones[i]
                 
                 mejor_direccion = self.buscar_mejor_direccion(direcciones_api, direccion_original[1])
-    
+                
                 if mejor_direccion:
                     # Agregar una tupla con los datos a la lista
                     normalizadas.append({
@@ -202,6 +201,29 @@ class GeolocalizadorHere(Geolocalizador):
         coincidencias = [f for f in resultados if localidad == f["address"]["city"].lower()]
         return coincidencias[0] if coincidencias else None
         
+
+    def procesar_direcciones(self, direcciones):
+        """
+        Procesa las direcciones una por una utilizando la API de Here para obtener las coordenadas.
+        """
+        resultados = []
+
+        for direccion, localidad, provincia in direcciones:
+            try:
+                latitud, longitud = self.obtener_coordenadas(direccion, provincia, localidad)
+                if latitud and longitud:
+                    resultados.append({
+                        'direccion': direccion,
+                        'localidad': localidad,
+                        'provincia': provincia,
+                        'latitud': latitud,
+                        'longitud': longitud
+                    })
+            except Exception as e:
+                print(f"Error al obtener coordenadas para {direccion}: {e}")
+        
+        return resultados
+    
     
 class GeolocalizadorLocationIQ(Geolocalizador):
     def __init__(self, api_key, delay):
