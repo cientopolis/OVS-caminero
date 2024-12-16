@@ -28,7 +28,7 @@ class GeolocalizadorNominatim(Geolocalizador):
         data = response.json()
 
         time.sleep(self.delay)  # Tiempo de espera entre solicitudes
-        data 
+         
         # Buscar la mejor dirección en base a la localidad
         mejor_direccion = self.buscar_mejor_direccion(data, localidad)
         if mejor_direccion:
@@ -53,9 +53,6 @@ class GeolocalizadorDatosGobar(Geolocalizador):
         self.base_url = "https://apis.datos.gob.ar/georef/api/direcciones"
 
     def obtener_coordenadas(self, direccion, localidad, provincia=None):
-        """
-        Usa POST en lugar de GET para garantizar la consistencia.
-        """
         direccion_procesada = self.procesar_direccion(direccion)
         payload = {"direcciones": [{"direccion": direccion_procesada, "max": 5}]}
         if localidad:
@@ -202,27 +199,6 @@ class GeolocalizadorHere(Geolocalizador):
         return coincidencias[0] if coincidencias else None
         
 
-    def procesar_direcciones(self, direcciones):
-        """
-        Procesa las direcciones una por una utilizando la API de Here para obtener las coordenadas.
-        """
-        resultados = []
-
-        for direccion, localidad, provincia in direcciones:
-            try:
-                latitud, longitud = self.obtener_coordenadas(direccion, provincia, localidad)
-                if latitud and longitud:
-                    resultados.append({
-                        'direccion': direccion,
-                        'localidad': localidad,
-                        'provincia': provincia,
-                        'latitud': latitud,
-                        'longitud': longitud
-                    })
-            except Exception as e:
-                print(f"Error al obtener coordenadas para {direccion}: {e}")
-        
-        return resultados
     
     
 class GeolocalizadorLocationIQ(Geolocalizador):
