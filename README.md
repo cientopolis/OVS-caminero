@@ -25,6 +25,7 @@ python --version
 Primero, clona el repositorio a tu máquina local:
 
 git clone https://github.com/cientopolis/OVS-caminero
+
 cd OVS-caminero
 
 ### 2. Crea un entorno virtual (opcional, pero recomendado)
@@ -52,7 +53,9 @@ pip install -r requirements.txt
 Una vez instaladas las dependencias, ya se puede ejecutar el cualquiera de los tres scripts con:
 
 python procesar_direcciones.py
+
 python georreferenciar_direcciones.py
+
 geolocalizar_con_delta.py
 
 ## Uso
