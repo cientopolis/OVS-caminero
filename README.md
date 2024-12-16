@@ -6,7 +6,6 @@ Este proyecto toma direcciones y las georreferencia utilizando diversas librerí
 
 Tenes que tener Python 3.8 o superior instalado. Podés verificar tu versión de Python con:
 
-```bash
 python --version
 
 - Dependencias listadas en el archivo `requirements.txt`:
@@ -19,14 +18,50 @@ python --version
     - numpy
     - y otras necesarias para el proyecto.
 
-## **Instalación**
-
-Sigue estos pasos para configurar el entorno y ejecutar el proyecto.
+## Instalación
 
 ### 1. Clona el repositorio
 
 Primero, clona el repositorio a tu máquina local:
 
-```bash
-git clone https://github.com/tu_usuario/tu_repositorio.git
-cd tu_repositorio
+git clone https://github.com/cientopolis/OVS-caminero
+cd OVS-caminero
+
+### 2. Crea un entorno virtual (opcional, pero recomendado)
+Para evitar conflictos con otras librerías, creá un entorno virtual:
+
+python3 -m venv venv
+
+### 3. Activá el entorno virtual
+Dependiendo de tu sistema operativo, activa el entorno virtual:
+
+En Linux/macOS:
+
+source venv/bin/activate
+
+En Windows:
+
+.\venv\Scripts\activate
+
+### 4. Instalá las dependencias
+Instalá las librerías necesarias listadas en el archivo requirements.txt:
+
+pip install -r requirements.txt
+
+### 5. Ejecutá el proyecto
+Una vez instaladas las dependencias, ya se puede ejecutar el cualquiera de los tres scripts con:
+
+python procesar_direcciones.py
+python georreferenciar_direcciones.py
+geolocalizar_con_delta.py
+
+## Uso
+
+### procesar_direcciones.py
+Requiere que el csv ingresado contenga las columnas dirección, provincia y localidad.
+
+### georreferenciar_direcciones.py
+Requiere que el csv ingresado contenga las columnas address y district.
+
+### geolocalizar_con_delta.py
+Requiere que el csv ingresado contenga calle y altura.
